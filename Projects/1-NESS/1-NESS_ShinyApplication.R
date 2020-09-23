@@ -12,7 +12,7 @@ population <- vroom::vroom("https://raw.githubusercontent.com/hadley/mastering-s
 
 
 ##Resume function:
-count_top <- function(df, var, n = 5) {
+count_top <- function(df, var, n) {
     df %>%
         mutate({{ var }} := fct_lump(fct_infreq({{ var }}), n = n)) %>%
         group_by({{ var }}) %>%
@@ -27,7 +27,8 @@ ui <- fluidPage(
         column(8,
                selectInput("code", "Produto", setNames(products$prod_code, products$title), width = "100%")
         ),
-        column(2, selectInput("y","Y axis", c("rate", "count")))
+        column(2, selectInput("y","Y axis", c("rate", "count"))),
+        column(2, numericInput("rows", "N Rows Table (+ Others)", value = 5))
     ),
     fluidRow(
         column(4, DT::dataTableOutput("diag")),
@@ -36,6 +37,10 @@ ui <- fluidPage(
     ),
     fluidRow(
         column(12, plotOutput("age_sex"))
+    ),
+    fluidRow(
+        column(2, actionButton("story", "Tell me a story")),
+        column(10, textOutput("narrative"))
     )
 )
 
@@ -44,15 +49,16 @@ ui <- fluidPage(
 
 server <- function(input, output, session) {
     selected <- reactive(injuries %>% filter(prod_code == input$code))
+    rows <- reactive(input$rows)
 
     output$diag <- DT::renderDataTable(
-        count_top(selected(), diag), width = "100%"
+        count_top(selected(), diag, input$rows), width = "100%"
     )
     output$body_part <- DT::renderDataTable(
-        count_top(selected(), body_part), width = "100%"
+        count_top(selected(), body_part, input$rows), width = "100%"
     )
     output$location <- DT::renderDataTable(
-        count_top(selected(), location), width = "100%"
+        count_top(selected(), location, input$rows), width = "100%"
     )
 
     summary <- reactive({
@@ -75,6 +81,11 @@ server <- function(input, output, session) {
                 labs(y = "Injuries per 10,000 people")
         }
     }, res = 96)
+
+    output$narrative <- renderText({
+        input$story
+        selected() %>% pull(narrative) %>% sample(1)
+    })
 }
 
 shinyApp(ui,server)
