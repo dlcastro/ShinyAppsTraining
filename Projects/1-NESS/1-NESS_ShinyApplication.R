@@ -1,4 +1,16 @@
 library(shiny)
+library(DT)
+
+
+
+
+##Resume function:
+count_top <- function(df, var, n = 5) {
+    df %>%
+        mutate({{ var }} := fct_lump(fct_infreq({{ var }}), n = n)) %>%
+        group_by({{ var }}) %>%
+        summarise(n = as.integer(sum(weight)))
+}
 
 
 ##UI
@@ -10,9 +22,9 @@ ui <- fluidPage(
         )
     ),
     fluidRow(
-        column(4, tableOutput("diag")),
-        column(4, tableOutput("body_part")),
-        column(4, tableOutput("location")),
+        column(4, DT::dataTableOutput("diag")),
+        column(4, DT::dataTableOutput("body_part")),
+        column(4, DT::dataTableOutput("location")),
     ),
     fluidRow(
         column(12, plotOutput("age_sex"))
@@ -25,14 +37,14 @@ ui <- fluidPage(
 server <- function(input, output, session) {
     selected <- reactive(injuries %>% filter(prod_code == input$code))
 
-    output$diag <- renderTable(
-        selected() %>% count(diag, wt = weight, sort = TRUE)
+    output$diag <- DT::renderDataTable(
+        count_top(selected(), diag), width = "100%"
     )
-    output$body_part <- renderTable(
-        selected() %>% count(body_part, wt = weight, sort = TRUE)
+    output$body_part <- DT::renderDataTable(
+        count_top(selected(), body_part), width = "100%"
     )
-    output$location <- renderTable(
-        selected() %>% count(location, wt = weight, sort = TRUE)
+    output$location <- DT::renderDataTable(
+        count_top(selected(), location), width = "100%"
     )
 
     summary <- reactive({
@@ -51,3 +63,10 @@ server <- function(input, output, session) {
 }
 
 shinyApp(ui,server)
+
+
+
+injuries %>%
+    mutate(diag = fct_lump(fct_infreq(diag), n = 5)) %>%
+    group_by(diag) %>%
+    summarise(n = as.integer(sum(weight)))
