@@ -1,6 +1,13 @@
 library(shiny)
 library(DT)
+library(vroom)
+library(tidyverse)
 
+#Data: National Electronic Injury Surveillance System (NEISS) - 2017
+
+injuries <- vroom::vroom("injuries.tsv.gz")
+products <- vroom::vroom("https://raw.githubusercontent.com/hadley/mastering-shiny/master/neiss/products.tsv")
+population <- vroom::vroom("https://raw.githubusercontent.com/hadley/mastering-shiny/master/neiss/population.tsv")
 
 
 
@@ -17,9 +24,10 @@ count_top <- function(df, var, n = 5) {
 
 ui <- fluidPage(
     fluidRow(
-        column(6,
-               selectInput("code", "Produto", setNames(products$prod_code, products$title))
-        )
+        column(8,
+               selectInput("code", "Produto", setNames(products$prod_code, products$title), width = "100%")
+        ),
+        column(2, selectInput("y","Y axis", c("rate", "count")))
     ),
     fluidRow(
         column(4, DT::dataTableOutput("diag")),
@@ -55,18 +63,20 @@ server <- function(input, output, session) {
     })
 
     output$age_sex <- renderPlot({
-        summary() %>%
-            ggplot(aes(age, n, colour = sex)) +
-            geom_line() +
-            labs(y = "Estimated number of injuries")
+        if (input$y == "count") {
+            summary() %>%
+                ggplot(aes(age, n, colour = sex)) +
+                geom_line() +
+                labs(y = "Estimated number of injuries")
+        } else {
+            summary() %>%
+                ggplot(aes(age, rate, colour = sex)) +
+                geom_line(na.rm = T) +
+                labs(y = "Injuries per 10,000 people")
+        }
     }, res = 96)
 }
 
 shinyApp(ui,server)
 
 
-
-injuries %>%
-    mutate(diag = fct_lump(fct_infreq(diag), n = 5)) %>%
-    group_by(diag) %>%
-    summarise(n = as.integer(sum(weight)))
